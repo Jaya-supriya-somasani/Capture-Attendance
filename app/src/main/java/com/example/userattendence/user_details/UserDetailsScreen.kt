@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import com.example.userattendence.AttendanceApp
 import androidx.lifecycle.viewmodel.compose.viewModel            // ✅ Fix for viewModel()
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage        // ✅ Glide instead of Coil
@@ -42,16 +43,19 @@ import java.util.*
 @Composable
 fun UserDetails(modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val viewModel: UserDetailsViewModel = viewModel()
+
+    val viewModel: UserDetailsViewModel = viewModel(
+        factory = UserDetailsViewModel.Factory(
+            (context.applicationContext as AttendanceApp).appComponent.repository()
+        )
+    )
+
+    val records by viewModel.records.collectAsState()
     val scope = rememberCoroutineScope()
 
     var captureState by remember { mutableStateOf(CaptureState()) }
     var tempUri by remember { mutableStateOf<Uri?>(null) }
-
-    var tempFilePath by remember { mutableStateOf("") }    // ✅ Add this
-
-
-    val records by viewModel.records.collectAsState()
+    var tempFilePath by remember { mutableStateOf("") }
 
     val permissions = rememberMultiplePermissionsState(
         permissions = listOf(
@@ -70,7 +74,6 @@ fun UserDetails(modifier: Modifier = Modifier) {
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (success) {
-            // ✅ One single state update — no shaking
             captureState = CaptureState(
                 imageUri = tempUri,
                 isLoading = true,
@@ -78,7 +81,6 @@ fun UserDetails(modifier: Modifier = Modifier) {
             )
             scope.launch {
                 val locationData = getCurrentLocation(context)
-                // ✅ One final state update when location is ready
                 captureState = CaptureState(
                     imageUri = tempUri,
                     address = locationData?.address ?: "Location unavailable",
@@ -87,9 +89,8 @@ fun UserDetails(modifier: Modifier = Modifier) {
                 )
                 locationData?.let {
                     viewModel.saveAttendance(
-                        context = context,
-                        locationData = it,
                         imageUri = tempFilePath,
+                        locationData = it,
                     )
                 }
             }
@@ -126,14 +127,12 @@ fun UserDetails(modifier: Modifier = Modifier) {
             Text(
                 if (permissions.allPermissionsGranted)
                     "📷 Capture Attendance"
-                else
-                    "Grant Permissions"
+                else "Grant Permissions"
             )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ✅ Card only recomposes when captureState changes as a whole
         if (captureState.imageUri != null) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -141,17 +140,11 @@ fun UserDetails(modifier: Modifier = Modifier) {
                 elevation = CardDefaults.cardElevation(4.dp)
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        "Latest Capture",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 16.sp
-                    )
+                    Text("Latest Capture", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // ✅ Glide with explicit bitmap transformation for dark image fix
-                    // ✅ GlideImage uses file path — no stream rewind issue
                     GlideImage(
-                        model = captureState.filePath,    // ✅ File path, not content:// URI
+                        model = captureState.filePath,
                         contentDescription = "Captured Image",
                         modifier = Modifier
                             .fillMaxWidth()
@@ -165,7 +158,6 @@ fun UserDetails(modifier: Modifier = Modifier) {
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // ✅ Single condition check — no flickering between states
                     when {
                         captureState.isLoading -> {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -205,7 +197,6 @@ fun UserDetails(modifier: Modifier = Modifier) {
     }
 }
 
-// ── Single history card ──────────────────────────────────────────────
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
 fun AttendanceRecordCard(record: AttendanceRecord) {
@@ -215,9 +206,8 @@ fun AttendanceRecordCard(record: AttendanceRecord) {
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Row(modifier = Modifier.padding(10.dp)) {
-
             GlideImage(
-                model = record.imageUri,    // ✅ already file path now
+                model = record.imageUri,
                 contentDescription = "Attendance Photo",
                 modifier = Modifier
                     .size(70.dp)
@@ -227,7 +217,6 @@ fun AttendanceRecordCard(record: AttendanceRecord) {
                 it.diskCacheStrategy(DiskCacheStrategy.NONE)
                     .skipMemoryCache(true)
             }
-
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(record.capturedAt, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
@@ -244,8 +233,6 @@ fun AttendanceRecordCard(record: AttendanceRecord) {
     }
 }
 
-// ── Helper to create image file URI ─────────────────────────────────
-// ✅ Returns both URI (for camera) and path (for Glide)
 fun createImageFile(context: Context): Pair<Uri, String> {
     val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
     val imageFile = File(
@@ -257,5 +244,5 @@ fun createImageFile(context: Context): Pair<Uri, String> {
         "${context.packageName}.provider",
         imageFile
     )
-    return Pair(uri, imageFile.absolutePath)   // ✅ return file path too
+    return Pair(uri, imageFile.absolutePath)
 }

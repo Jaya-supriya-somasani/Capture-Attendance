@@ -9,21 +9,4 @@ import androidx.room.RoomDatabase
 abstract class AttendanceDatabase : RoomDatabase() {
 
     abstract fun attendanceDao(): AttendanceDetailsDao
-
-    companion object {
-        @Volatile
-        private var INSTANCE: AttendanceDatabase? = null
-
-        fun getDatabase(context: Context): AttendanceDatabase {
-            return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    AttendanceDatabase::class.java,
-                    "attendance_database"
-                ).build()
-                INSTANCE = instance
-                instance
-            }
-        }
-    }
 }

@@ -8,7 +8,10 @@ import android.os.Build
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 
 data class LocationData(
@@ -22,57 +25,40 @@ suspend fun getCurrentLocation(context: Context): LocationData? {
     val fusedClient = LocationServices.getFusedLocationProviderClient(context)
     val cancellationToken = CancellationTokenSource()
 
-    return suspendCancellableCoroutine { cont ->
-        fusedClient.getCurrentLocation(
-            Priority.PRIORITY_HIGH_ACCURACY,
-            cancellationToken.token
-        ).addOnSuccessListener { location ->
-            if (location != null) {
-                // ✅ getAddress is now called inside the location callback
-                // so we have real coordinates before resolving
-                val address = getAddressFromCoordinatesSync(
-                    context,
-                    location.latitude,
-                    location.longitude
-                )
-                cont.resume(
-                    LocationData(
-                        latitude = location.latitude,
-                        longitude = location.longitude,
-                        address = address
-                    )
-                )
-            } else {
+    val location =
+        suspendCancellableCoroutine<android.location.Location?> { cont ->
+            fusedClient.getCurrentLocation(
+                Priority.PRIORITY_HIGH_ACCURACY,
+                cancellationToken.token
+            ).addOnSuccessListener { location ->
+                cont.resume(location)
+            }.addOnFailureListener {
                 cont.resume(null)
             }
-        }.addOnFailureListener {
-            cont.resume(null)
-        }
 
-        cont.invokeOnCancellation {
-            cancellationToken.cancel()
-        }
+            cont.invokeOnCancellation { cancellationToken.cancel() }
+        } ?: return null
+
+    val address = withContext(Dispatchers.IO) {
+        getAddress(context, location.latitude, location.longitude)
     }
+
+    return LocationData(location.latitude, location.longitude, address)
 }
 
-// ✅ Sync version for older Android + properly awaited callback for Android 13+
 @Suppress("DEPRECATION")
-fun getAddressFromCoordinatesSync(context: Context, lat: Double, lng: Double): String {
+private suspend fun getAddress(context: Context, lat: Double, lng: Double): String {
     return try {
         val geocoder = Geocoder(context)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // ✅ Use blocking approach for TIRAMISU+ to avoid async race condition
-            var resultAddress = "Address unavailable"
-            val latch = java.util.concurrent.CountDownLatch(1)
-
-            geocoder.getFromLocation(lat, lng, 1) { addresses ->
-                resultAddress = formatAddress(addresses)
-                latch.countDown()   // ✅ Unblocks after callback fires
-            }
-
-            latch.await(5, java.util.concurrent.TimeUnit.SECONDS) // wait max 5 sec
-            resultAddress
+            withTimeoutOrNull(5000L) {
+                suspendCancellableCoroutine { cont ->
+                    geocoder.getFromLocation(lat, lng, 1) { addresses ->
+                        cont.resume(formatAddress(addresses))
+                    }
+                }
+            } ?: "Address unavailable"
         } else {
             val addresses = geocoder.getFromLocation(lat, lng, 1)
             formatAddress(addresses ?: emptyList())

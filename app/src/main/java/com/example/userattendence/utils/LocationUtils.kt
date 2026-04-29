@@ -5,6 +5,7 @@ import android.content.Context
 import android.location.Address
 import android.location.Geocoder
 import android.os.Build
+import com.example.userattendence.domain.LocationData
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -13,12 +14,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
-
-data class LocationData(
-    val latitude: Double,
-    val longitude: Double,
-    val address: String
-)
 
 @SuppressLint("MissingPermission")
 suspend fun getCurrentLocation(context: Context): LocationData? {

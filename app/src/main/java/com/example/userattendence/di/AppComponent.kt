@@ -1,6 +1,6 @@
 package com.example.userattendence.di
 
-import com.example.userattendence.repository.AttendanceRepository
+import com.example.userattendence.data.repository.AttendanceRepository
 import dagger.Component
 import javax.inject.Singleton
 

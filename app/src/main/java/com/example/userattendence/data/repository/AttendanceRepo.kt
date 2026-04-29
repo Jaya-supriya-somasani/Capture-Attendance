@@ -1,8 +1,8 @@
-package com.example.userattendence.repository
+package com.example.userattendence.data.repository
 
-import com.example.userattendence.attendance.AttendanceDetailsDao
-import com.example.userattendence.attendance.AttendanceRecord
-import com.example.userattendence.utils.LocationData
+import com.example.userattendence.data.local.dao.AttendanceDetailsDao
+import com.example.userattendence.data.local.entity.AttendanceRecord
+import com.example.userattendence.domain.LocationData
 import kotlinx.coroutines.flow.Flow
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -30,4 +30,5 @@ class AttendanceRepository @Inject constructor(
             )
         )
     }
+    suspend fun clearAllRecords() = dao.clearAllRecords()
 }

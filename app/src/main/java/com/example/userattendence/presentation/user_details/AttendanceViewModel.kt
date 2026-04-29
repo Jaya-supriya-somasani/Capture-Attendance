@@ -1,18 +1,18 @@
-package com.example.userattendence.user_details
+package com.example.userattendence.presentation.user_details
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.userattendence.repository.AttendanceRepository
-import com.example.userattendence.attendance.AttendanceRecord
-import com.example.userattendence.utils.LocationData
+import com.example.userattendence.data.repository.AttendanceRepository
+import com.example.userattendence.data.local.entity.AttendanceRecord
+import com.example.userattendence.domain.LocationData
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-class UserDetailsViewModel @Inject constructor(
+class AttendanceViewModel @Inject constructor(
     private val repository: AttendanceRepository
 ) : ViewModel() {
 
@@ -30,12 +30,18 @@ class UserDetailsViewModel @Inject constructor(
         }
     }
 
+    fun clearAllRecords() {
+        viewModelScope.launch {
+            repository.clearAllRecords()
+        }
+    }
+
     class Factory @Inject constructor(
         private val repository: AttendanceRepository
     ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             @Suppress("UNCHECKED_CAST")
-            return UserDetailsViewModel(repository) as T
+            return AttendanceViewModel(repository) as T
         }
     }
 }

@@ -1,4 +1,4 @@
-package com.example.userattendence.attendance
+package com.example.userattendence.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

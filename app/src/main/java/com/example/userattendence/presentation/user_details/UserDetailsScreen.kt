@@ -1,4 +1,4 @@
-package com.example.userattendence.user_details
+package com.example.userattendence.presentation.user_details
 
 import android.Manifest
 import android.content.Context
@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,7 +30,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel            // ✅ Fix for 
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage        // ✅ Glide instead of Coil
 import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.example.userattendence.attendance.AttendanceRecord
+import com.example.userattendence.data.local.entity.AttendanceRecord
+import com.example.userattendence.presentation.CaptureState
+import com.example.userattendence.presentation.components.AttendanceRecordCard
+import com.example.userattendence.presentation.components.ClearButton
+import com.example.userattendence.utils.createImageFile
 import com.example.userattendence.utils.getCurrentLocation
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
@@ -38,14 +43,13 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
-@RequiresApi(Build.VERSION_CODES.P)
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalGlideComposeApi::class)
 @Composable
 fun UserDetails(modifier: Modifier = Modifier) {
     val context = LocalContext.current
 
-    val viewModel: UserDetailsViewModel = viewModel(
-        factory = UserDetailsViewModel.Factory(
+    val viewModel: AttendanceViewModel = viewModel(
+        factory = AttendanceViewModel.Factory(
             (context.applicationContext as AttendanceApp).appComponent.repository()
         )
     )
@@ -130,6 +134,19 @@ fun UserDetails(modifier: Modifier = Modifier) {
                 else "Grant Permissions"
             )
         }
+        if (records.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                ClearButton(
+                    onConfirm = {
+                        viewModel.clearAllRecords()
+                        captureState = CaptureState()
+                    }
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -195,54 +212,4 @@ fun UserDetails(modifier: Modifier = Modifier) {
             }
         }
     }
-}
-
-@OptIn(ExperimentalGlideComposeApi::class)
-@Composable
-fun AttendanceRecordCard(record: AttendanceRecord) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
-        elevation = CardDefaults.cardElevation(2.dp)
-    ) {
-        Row(modifier = Modifier.padding(10.dp)) {
-            GlideImage(
-                model = record.imageUri,
-                contentDescription = "Attendance Photo",
-                modifier = Modifier
-                    .size(70.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
-            ) {
-                it.diskCacheStrategy(DiskCacheStrategy.NONE)
-                    .skipMemoryCache(true)
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(record.capturedAt, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("📍 ${record.address}", fontSize = 12.sp, color = Color.DarkGray)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    "Lat: ${"%.4f".format(record.latitude)}, Lng: ${"%.4f".format(record.longitude)}",
-                    fontSize = 11.sp,
-                    color = Color.Gray
-                )
-            }
-        }
-    }
-}
-
-fun createImageFile(context: Context): Pair<Uri, String> {
-    val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-    val imageFile = File(
-        context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-        "IMG_$timeStamp.jpg"
-    )
-    val uri = FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.provider",
-        imageFile
-    )
-    return Pair(uri, imageFile.absolutePath)
 }

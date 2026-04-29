@@ -2,9 +2,9 @@ package com.example.userattendence.di
 
 import android.content.Context
 import androidx.room.Room
-import com.example.userattendence.attendance.AttendanceDatabase
-import com.example.userattendence.attendance.AttendanceDetailsDao
-import com.example.userattendence.repository.AttendanceRepository
+import com.example.userattendence.data.local.database.AttendanceDatabase
+import com.example.userattendence.data.local.dao.AttendanceDetailsDao
+import com.example.userattendence.data.repository.AttendanceRepository
 import dagger.Module
 import dagger.Provides
 import javax.inject.Singleton
